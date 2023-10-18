@@ -34,18 +34,6 @@
     font-weight: 600;
 }
 
-.headerTitleLeft {
-    margin-left: 12px;
-    font-weight: 600;
-    text-align: left;
-}
-
-.headerTitleRight {
-    margin-left: 12px;
-    font-weight: 600;
-    text-align: right;
-}
-
 .headerNavList {
     display: flex;
     list-style: none;

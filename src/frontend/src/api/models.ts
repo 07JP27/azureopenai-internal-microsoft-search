@@ -1,78 +1,57 @@
-export const enum Approaches {
-    RetrieveThenRead = "rtr",
-    ReadRetrieveRead = "rrr",
-    ReadDecomposeAsk = "rda",
-    Read = "r"
+export const enum RetrievalMode {
+    Hybrid = "hybrid",
+    Vectors = "vectors",
+    Text = "text"
 }
 
-export type AskRequestOverrides = {
-    gptModel?: string;
-    semanticRanker?: boolean;
-    semanticCaptions?: boolean;
-    excludeCategory?: string;
+export type ChatAppRequestOverrides = {
+    retrieval_mode?: RetrievalMode;
+    semantic_ranker?: boolean;
+    semantic_captions?: boolean;
+    exclude_category?: string;
     top?: number;
-    temperature?: string;
-    promptTemplate?: string;
-    promptTemplatePrefix?: string;
-    promptTemplateSuffix?: string;
+    temperature?: number;
+    prompt_template?: string;
+    prompt_template_prefix?: string;
+    prompt_template_suffix?: string;
+    suggest_followup_questions?: boolean;
+    use_oid_security_filter?: boolean;
+    use_groups_security_filter?: boolean;
 };
 
-export type AskRequest = {
-    question: string;
-    approach: Approaches;
-    overrides?: AskRequestOverrides;
-};
+export type ResponseMessage = {
+    content: string;
+    role: string;
+}
 
-export type AskResponse = {
-    answer: string;
+export type ResponseContext = {
     thoughts: string | null;
     data_points: string[];
+}
+
+export type ResponseChoice = {
+    index: number;
+    message: ResponseMessage;
+    context: ResponseContext;
+    session_state: any;
+};
+
+export type ChatAppResponseOrError = {
+    choices?: ResponseChoice[];
     error?: string;
 };
 
-export type ChatTurn = {
-    user: string;
-    bot?: string;
+export type ChatAppResponse = {
+    choices: ResponseChoice[];
 };
 
-export type ChatRequest = {
-    history: ChatTurn[];
-    approach: Approaches;
-    overrides?: AskRequestOverrides;
-};
+export type ChatAppRequestContext = {
+    overrides?: ChatAppRequestOverrides;
+}
 
-export type GptChatTurn = {
-    user: string;
-    assistant?: string;
-};
-
-export type GptChatRequest = {
-    history: GptChatTurn[];
-    approach: Approaches;
-    overrides?: GptRequestOverrides;
-};
-
-export type GptRequestOverrides = {
-    gptModel?: string;
-    temperature?: string;
-    systemPrompt?: string;
-};
-
-export type ChatResponse = {
-    answer: string;
-    error?: string;
-};
-
-export type Claim = {
-    typ: string;
-    val: string;
-};
-
-export type AccessToken = {
-    access_token: string;
-    expires_on: string;
-    id_token: string;
-    provider_name: string;
-    user_claims: Claim[];
-    user_id: string;
+export type ChatAppRequest = {
+    messages: ResponseMessage[];
+    context?: ChatAppRequestContext;
+    stream?: boolean;
+    session_state: any;
 };

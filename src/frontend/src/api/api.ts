@@ -1,68 +1,45 @@
-import { AskRequest, AskResponse, GptChatRequest, ChatRequest, ChatResponse } from "./models";
+const BACKEND_URI = "";
 
-export async function askApi(options: AskRequest): Promise<AskResponse> {
-    const response = await fetch("/ask", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            question: options.question,
-            approach: options.approach,
-            overrides: options.overrides
-        })
-    });
+import { ChatAppResponse, ChatAppResponseOrError, ChatAppRequest } from "./models";
+import { useLogin } from "../authConfig";
 
-    const parsedResponse: AskResponse = await response.json();
-    if (response.status > 299 || !response.ok) {
-        throw Error(parsedResponse.error || "Unknown error");
+function getHeaders(idToken: string | undefined): Record<string, string> {
+    var headers : Record<string, string> = {
+        "Content-Type": "application/json"
+    };
+    // If using login, add the id token of the logged in account as the authorization
+    if (useLogin) {
+        if (idToken) {
+            headers["Authorization"] = `Bearer ${idToken}`
+        }
     }
 
-    return parsedResponse;
+    return headers;
 }
 
-export async function searchdocApi(options: ChatRequest): Promise<AskResponse> {
-    const response = await fetch("/docsearch", {
+export async function askApi(request: ChatAppRequest, idToken: string | undefined): Promise<ChatAppResponse> {
+    const response = await fetch(`${BACKEND_URI}/ask`, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            history: options.history,
-            approach: options.approach,
-            overrides: options.overrides
-        })
+        headers: getHeaders(idToken),
+        body: JSON.stringify(request)
     });
 
-    const parsedResponse: AskResponse = await response.json();
+    const parsedResponse: ChatAppResponseOrError = await response.json();
     if (response.status > 299 || !response.ok) {
         throw Error(parsedResponse.error || "Unknown error");
     }
 
-    return parsedResponse;
+    return parsedResponse as ChatAppResponse;
 }
 
-export async function chatApi(options: GptChatRequest): Promise<ChatResponse> {
-    const response = await fetch("/chat", {
+export async function chatApi(request: ChatAppRequest, idToken: string | undefined): Promise<Response> {
+    return await fetch(`${BACKEND_URI}/chat`, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            history: options.history,
-            approach: options.approach,
-            overrides: options.overrides
-        })
+        headers: getHeaders(idToken),
+        body: JSON.stringify(request)
     });
-
-    const parsedResponse: AskResponse = await response.json();
-    if (response.status > 299 || !response.ok) {
-        throw Error(parsedResponse.error || "Unknown error");
-    }
-
-    return parsedResponse;
 }
 
 export function getCitationFilePath(citation: string): string {
-    return `/content/${citation}`;
+    return `${BACKEND_URI}/content/${citation}`;
 }

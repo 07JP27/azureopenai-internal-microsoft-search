@@ -1,40 +1,38 @@
-import { useState, useMemo } from "react";
 import { Outlet, NavLink, Link } from "react-router-dom";
-import { AccessToken, Claim } from "../../api";
 
 import github from "../../assets/github.svg";
 
 import styles from "./Layout.module.css";
 
+import { useLogin } from "../../authConfig"
+
+import { LoginButton } from "../../components/LoginButton"
+
 const Layout = () => {
-    const [loginUser, setLoginUser] = useState<string>("");
-
-    const getLoginUserName = async () => {
-        const loginUser: string = "";
-
-        try {
-            const result = await fetch("/.auth/me");
-
-            const response: AccessToken[] = await result.json();
-            const loginUserClaim = response[0].user_claims.find((claim: Claim) => claim.typ === "preferred_username");
-            if (loginUserClaim) setLoginUser(loginUserClaim.val);
-            else setLoginUser(response[0].user_id);
-        } catch (e) {
-            setLoginUser("anonymous");
-            // TODO: ログインページへリダイレクト
-        }
-    };
-
-    getLoginUserName();
-
     return (
         <div className={styles.layout}>
             <header className={styles.header} role={"banner"}>
                 <div className={styles.headerContainer}>
                     <Link to="/" className={styles.headerTitleContainer}>
-                        <h3 className={styles.headerTitleLeft}>Graph Search APIを利用した社内情報検索</h3>
+                        <h3 className={styles.headerTitle}>GPT + Graph Search 社内情報検索サンプル</h3>
                     </Link>
-                    <h3 className={styles.headerTitleRight}>{loginUser}</h3>
+                    <nav>
+                        <ul className={styles.headerNavList}>
+                            <li className={styles.headerNavLeftMargin}>
+                                <a href="https://github.com/07JP27/azureopenai-internal-microsoft-search" target={"_blank"} title="Github repository link">
+                                    <img
+                                        src={github}
+                                        alt="Github logo"
+                                        aria-label="Link to github repository"
+                                        width="20px"
+                                        height="20px"
+                                        className={styles.githubLogo}
+                                    />
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                    {useLogin && <LoginButton/>}
                 </div>
             </header>
 

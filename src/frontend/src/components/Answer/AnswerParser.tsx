@@ -1,14 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { getCitationFilePath } from "../../api";
 
-// for DocSearch
 type HtmlParsedAnswer = {
     answerHtml: string;
     citations: string[];
     followupQuestions: string[];
 };
 
-export function parseAnswerToHtml(answer: string, onCitationClicked: (citationFilePath: string) => void): HtmlParsedAnswer {
+export function parseAnswerToHtml(answer: string, isStreaming: boolean, onCitationClicked: (citationFilePath: string) => void): HtmlParsedAnswer {
     const citations: string[] = [];
     const followupQuestions: string[] = [];
 
@@ -21,12 +20,24 @@ export function parseAnswerToHtml(answer: string, onCitationClicked: (citationFi
     // trim any whitespace from the end of the answer after removing follow-up questions
     parsedAnswer = parsedAnswer.trim();
 
+    // Omit a citation that is still being typed during streaming
+    if (isStreaming){
+        let lastIndex = parsedAnswer.length;
+        for (let i = parsedAnswer.length - 1; i >= 0; i--) {
+            if (parsedAnswer[i] === ']') {
+                break;
+            } else if (parsedAnswer[i] === '[') {
+                lastIndex = i;
+                break;
+            }
+        }
+        const truncatedAnswer = parsedAnswer.substring(0, lastIndex);
+        parsedAnswer = truncatedAnswer;
+    } 
+
     const parts = parsedAnswer.split(/\[([^\]]+)\]/g);
 
     const fragments: string[] = parts.map((part, index) => {
-        const parts = part.split("/");
-        part = parts[parts.length - 1];
-
         if (index % 2 === 0) {
             return part;
         } else {
@@ -52,25 +63,5 @@ export function parseAnswerToHtml(answer: string, onCitationClicked: (citationFi
         answerHtml: fragments.join(""),
         citations,
         followupQuestions
-    };
-}
-
-// for Chat
-type HtmlChatParsedAnswer = {
-    answerHtml: string;
-};
-
-export function parseChatAnswerToHtml(answer: string): HtmlChatParsedAnswer {
-    // trim any whitespace from the end of the answer after removing follow-up questions
-    const parsedAnswer = answer.trim();
-
-    const parts = parsedAnswer.split(/\[([^\]]+)\]/g);
-
-    const fragments: string[] = parts.map((part, index) => {
-        return part;
-    });
-
-    return {
-        answerHtml: fragments.join("")
     };
 }
