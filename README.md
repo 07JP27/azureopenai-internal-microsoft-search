@@ -1,0 +1,1 @@
+https://github.com/Azure-Samples/jp-azureopenai-samples/tree/main/5.internal-document-search
