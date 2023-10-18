@@ -31,6 +31,9 @@ app.MapGet("/weatherforecast", () =>
     return forecast;
 });
 
+
+app.MapGet("/auth_setup", () => "API server working");
+
 app.Run();
 
 record WeatherForecast(DateTime Date, int TemperatureC, string? Summary)
