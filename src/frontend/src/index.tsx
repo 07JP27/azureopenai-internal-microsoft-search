@@ -13,7 +13,7 @@ import Chat from "./pages/chat/Chat";
 
 var layout;
 if (useLogin) {
-    var msalInstance = new PublicClientApplication(msalCzonfig);
+    var msalInstance = new PublicClientApplication(msalConfig);
 
     // Default to using the first account if no account is active on page load
     if (!msalInstance.getActiveAccount() && msalInstance.getAllAccounts().length > 0) {

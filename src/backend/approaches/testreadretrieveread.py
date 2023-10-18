@@ -13,7 +13,7 @@ from core.modelhelper import get_token_limit
 from text import nonewlines
 
 
-class ChatReadRetrieveReadApproach(Approach):
+class TestReadRetrieveReadApproach(Approach):
     # Chat roles
     SYSTEM = "system"
     USER = "user"
@@ -65,8 +65,6 @@ If you cannot generate a search query, return just the number 0.
         self.openai_host = openai_host
         self.chatgpt_deployment = chatgpt_deployment
         self.chatgpt_model = chatgpt_model
-        self.sourcepage_field = sourcepage_field
-        self.content_field = content_field
         self.chatgpt_token_limit = get_token_limit(chatgpt_model)
 
     async def run_until_final_call(

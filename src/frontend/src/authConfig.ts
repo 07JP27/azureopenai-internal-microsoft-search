@@ -46,42 +46,7 @@ async function fetchAuthSetup(): Promise<AuthSetup> {
     return await response.json();
 }
 
-//const authSetup = await fetchAuthSetup();
-
-const authSetup = {
-        // Set to true if login elements should be shown in the UI
-        useLogin: false,
-        /**
-         * Configuration object to be passed to MSAL instance on creation.
-         * For a full list of MSAL.js configuration parameters, visit:
-         * https://github.com/AzureAD/microsoft-authentication-library-for-js/blob/dev/lib/msal-browser/docs/configuration.md
-         */
-        msalConfig: {
-            auth: {
-                clientId: "hoge", // Client app id used for login
-                authority: "hoge", // Directory to use for login https://learn.microsoft.com/azure/active-directory/develop/msal-client-application-configuration#authority
-                redirectUri: "hoge", // Points to window.location.origin. You must register this URI on Azure Portal/App Registration.
-                postLogoutRedirectUri: "hoge", // Indicates the page to navigate after logout.
-                navigateToLoginRequestUrl: "hoge" // If "true", will navigate back to the original request location before processing the auth code response.
-            },
-            cache: {
-                cacheLocation: "hoge", // Configures cache location. "sessionStorage" is more secure, but "localStorage" gives you SSO between tabs.
-                storeAuthStateInCookie: "hoge" // Set this to "true" if you are having issues on IE11 or Edge
-            }
-        },
-        loginRequest: {
-            /**
-             * Scopes you add here will be prompted for user consent during sign-in.
-             * By default, MSAL.js will add OIDC scopes (openid, profile, email) to any login request.
-             * For more information about OIDC scopes, visit:
-             * https://docs.microsoft.com/azure/active-directory/develop/v2-permissions-and-consent#openid-connect-scopes
-             */
-            scopes: []
-        },
-        tokenRequest: {
-            scopes: []
-        }
-}
+const authSetup = await fetchAuthSetup();
 
 export const useLogin = authSetup.useLogin;
 
