@@ -21,6 +21,7 @@ const Layout = () => {
             else setLoginUser(response[0].user_id);
         } catch (e) {
             setLoginUser("anonymous");
+            // TODO: ログインページへリダイレクト
         }
     };
 
@@ -31,22 +32,8 @@ const Layout = () => {
             <header className={styles.header} role={"banner"}>
                 <div className={styles.headerContainer}>
                     <Link to="/" className={styles.headerTitleContainer}>
-                        <h3 className={styles.headerTitleLeft}>企業内向けChatと社内文書検索</h3>
+                        <h3 className={styles.headerTitleLeft}>Graph Search APIを利用した社内情報検索</h3>
                     </Link>
-                    <nav>
-                        <ul className={styles.headerNavList}>
-                            <li>
-                                <NavLink to="/" className={({ isActive }) => (isActive ? styles.headerNavPageLinkActive : styles.headerNavPageLink)}>
-                                    企業内向けChat
-                                </NavLink>
-                            </li>
-                            <li className={styles.headerNavLeftMargin}>
-                                <NavLink to="/docsearch" className={({ isActive }) => (isActive ? styles.headerNavPageLinkActive : styles.headerNavPageLink)}>
-                                    社内文書検索
-                                </NavLink>
-                            </li>
-                        </ul>
-                    </nav>
                     <h3 className={styles.headerTitleRight}>{loginUser}</h3>
                 </div>
             </header>
