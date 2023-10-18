@@ -144,7 +144,7 @@ const DocSearch = () => {
         <div className={styles.container}>
             <div className={styles.commandsContainer}>
                 <ClearChatButton className={styles.commandButton} onClick={clearChat} disabled={!lastQuestionRef.current || isLoading} />
-                {/*<SettingsButton className={styles.commandButton} onClick={() => setIsConfigPanelOpen(!isConfigPanelOpen)} />*/}
+                <SettingsButton className={styles.commandButton} onClick={() => setIsConfigPanelOpen(!isConfigPanelOpen)} />
             </div>
             <div className={styles.chatRoot}>
                 <div className={styles.chatContainer}>
@@ -240,6 +240,7 @@ const DocSearch = () => {
                         options={temperatures}
                         onChange={onTempertureChange}
                     />
+                    {/*
                     <SpinButton
                         className={styles.chatSettingsSeparator}
                         label="Retrieve this many documents from search:"
@@ -261,7 +262,7 @@ const DocSearch = () => {
                         label="Use query-contextual summaries instead of whole documents"
                         onChange={onUseSemanticCaptionsChange}
                         disabled={!useSemanticRanker}
-                    />
+                    />*/}
                 </Panel>
             </div>
         </div>
