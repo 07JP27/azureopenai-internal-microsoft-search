@@ -14,7 +14,7 @@ const Layout = () => {
             <header className={styles.header} role={"banner"}>
                 <div className={styles.headerContainer}>
                     <Link to="/" className={styles.headerTitleContainer}>
-                        <h3 className={styles.headerTitle}>GPT + Graph Search 社内情報検索サンプル</h3>
+                        <h3 className={styles.headerTitle}>GPT + Graph Search テナント内情報検索サンプル</h3>
                     </Link>
                     <nav>
                         <ul className={styles.headerNavList}>

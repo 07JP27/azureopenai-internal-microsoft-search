@@ -25,10 +25,10 @@ export default defineConfig({
     },
     server: {
         proxy: {
-            "/content/": "http://localhost:50505",
-            "/auth_setup": "http://localhost:50505",
-            "/ask": "http://localhost:50505",
-            "/chat": "http://localhost:50505"
+            "/content/": "http://localhost:7139",
+            "/auth_setup": "http://localhost:7139",
+            "/ask": "http://localhost:7139",
+            "/chat": "http://localhost:7139"
         }
     }
 });
