@@ -67,6 +67,41 @@ If you cannot generate a search query, return just the number 0.
         self.chatgpt_model = chatgpt_model
         self.chatgpt_token_limit = get_token_limit(chatgpt_model)
 
+    async def run_simple_chat(
+        self,
+        history: list[dict[str, str]],
+        overrides: dict[str, Any],
+        auth_claims: dict[str, Any],
+        should_stream: bool = False,
+    ) -> tuple:
+        messages = self.get_messages_from_history(
+            system_prompt=self.query_prompt_template,
+            model_id=self.chatgpt_model,
+            history=history,
+            user_content="",
+            max_tokens=self.chatgpt_token_limit,
+            few_shots=self.query_prompt_few_shots,
+        )
+
+        chatgpt_args = {"deployment_id": self.chatgpt_deployment} if self.openai_host == "azure" else {}
+        chat_completion = await openai.ChatCompletion.acreate(
+            **chatgpt_args,
+            model=self.chatgpt_model,
+            messages=messages,
+            temperature=0.0,
+            max_tokens=100,  # Setting too low risks malformed JSON, setting too high may affect performance
+            n=1,
+        )
+        msg_to_display = "\n\n".join([str(message) for message in messages])
+        extra_info = {
+            "data_points": "huga",
+            "thoughts": f"Searched for:<br>hoge<br><br>Conversations:<br>"
+            + msg_to_display.replace("\n", "<br>"),
+        }
+        return (extra_info, chat_completion)
+
+
+
     async def run_until_final_call(
         self,
         history: list[dict[str, str]],
@@ -74,15 +109,18 @@ If you cannot generate a search query, return just the number 0.
         auth_claims: dict[str, Any],
         should_stream: bool = False,
     ) -> tuple:
-        has_text = overrides.get("retrieval_mode") in ["text", "hybrid", None]
-        has_vector = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
-        use_semantic_captions = True if overrides.get("semantic_captions") and has_text else False
-        top = overrides.get("top", 3)
-        filter = self.build_filter(overrides, auth_claims)
+        #has_text = overrides.get("retrieval_mode") in ["text", "hybrid", None]
+        #has_vector = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
+        #use_semantic_captions = True if overrides.get("semantic_captions") and has_text else False
+        #top = overrides.get("top", 3)
+        #filter = self.build_filter(overrides, auth_claims)
 
+        # content = clientからのリクエストボディのmessages→ユーザーからの最新の入力を取得している
         original_user_query = history[-1]["content"]
+        # 検索クエリを作るためのリクエストを作成
         user_query_request = "Generate search query for: " + original_user_query
 
+        # Doc検索のためのファンクションを定義
         functions = [
             {
                 "name": "search_sources",
@@ -100,7 +138,8 @@ If you cannot generate a search query, return just the number 0.
             }
         ]
 
-        # STEP 1: Generate an optimized keyword search query based on the chat history and the last question
+        # STEP 1: チャット履歴と最後の質問に基づいて、最適化されたキーワード検索クエリを生成します。
+        # システムプロンプトにクエリ生成用のテンプレートをセットしてクエリを生成するためのメッセージリストを生成
         messages = self.get_messages_from_history(
             system_prompt=self.query_prompt_template,
             model_id=self.chatgpt_model,
@@ -122,11 +161,12 @@ If you cannot generate a search query, return just the number 0.
             function_call="auto",
         )
 
+        # GPTから得られた結果(chat_completion)からFunction Calling用の引数またはGPTの返信そのものを使用してクエリを取得する。クエリが生成できなかった場合(chat_completion=0)は、ユーザーの質問をそのままクエリとする。
         query_text = self.get_search_query(chat_completion, original_user_query)
 
-        # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
-
+        # STEP 2: GPTに最適化されたクエリで検索インデックスから関連文書を取得する。
         # If retrieval mode includes vectors, compute an embedding for the query
+        '''
         if has_vector:
             embedding_args = {"deployment_id": self.embedding_deployment} if self.openai_host == "azure" else {}
             embedding = await openai.Embedding.acreate(**embedding_args, model=self.embedding_model, input=query_text)
@@ -170,6 +210,7 @@ If you cannot generate a search query, return just the number 0.
         else:
             results = [doc[self.sourcepage_field] + ": " + nonewlines(doc[self.content_field]) async for doc in r]
         content = "\n".join(results)
+        '''
 
         follow_up_questions_prompt = (
             self.follow_up_questions_prompt_content if overrides.get("suggest_followup_questions") else ""
@@ -226,7 +267,7 @@ If you cannot generate a search query, return just the number 0.
         auth_claims: dict[str, Any],
         session_state: Any = None,
     ) -> dict[str, Any]:
-        extra_info, chat_coroutine = await self.run_until_final_call(
+        extra_info, chat_coroutine = await self.run_simple_chat(
             history, overrides, auth_claims, should_stream=False
         )
         chat_resp = dict(await chat_coroutine)

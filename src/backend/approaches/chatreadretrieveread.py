@@ -65,8 +65,8 @@ If you cannot generate a search query, return just the number 0.
         self.openai_host = openai_host
         self.chatgpt_deployment = chatgpt_deployment
         self.chatgpt_model = chatgpt_model
-        self.sourcepage_field = sourcepage_field
-        self.content_field = content_field
+        #self.sourcepage_field = sourcepage_field
+        #self.content_field = content_field
         self.chatgpt_token_limit = get_token_limit(chatgpt_model)
 
     async def run_until_final_call(
@@ -80,8 +80,9 @@ If you cannot generate a search query, return just the number 0.
         has_vector = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
         use_semantic_captions = True if overrides.get("semantic_captions") and has_text else False
         top = overrides.get("top", 3)
-        filter = self.build_filter(overrides, auth_claims)
+        filter = self.build_filter(overrides, auth_claims) # auth_claimsはコンテンツフィルターのために必要
 
+        # 
         original_user_query = history[-1]["content"]
         user_query_request = "Generate search query for: " + original_user_query
 

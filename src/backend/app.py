@@ -70,7 +70,6 @@ async def chat():
     context["auth_claims"] = await auth_helper.get_auth_claims_if_enabled(request.headers)
     try:
         approach = current_app.config[CONFIG_CHAT_APPROACH]
-        '''
         result = await approach.run(
             request_json["messages"],
             stream=request_json.get("stream", False),
@@ -83,7 +82,6 @@ async def chat():
             response = await make_response(format_as_ndjson(result))
             response.timeout = None  # type: ignore
             return response
-        '''
     except Exception as e:
         logging.exception("Exception in /chat")
         return jsonify({"error": str(e)}), 500
