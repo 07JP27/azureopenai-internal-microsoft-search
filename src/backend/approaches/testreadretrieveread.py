@@ -270,7 +270,7 @@ If you cannot generate a search query, return just the number 0.
         extra_info, chat_coroutine = await self.run_simple_chat(
             history, overrides, auth_claims, should_stream=False
         )
-        chat_resp = dict(await chat_coroutine)
+        chat_resp = dict(chat_coroutine)
         chat_resp["choices"][0]["context"] = extra_info
         chat_resp["choices"][0]["session_state"] = session_state
         return chat_resp
