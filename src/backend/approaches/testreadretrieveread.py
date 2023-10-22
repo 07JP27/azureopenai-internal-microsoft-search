@@ -74,31 +74,22 @@ If you cannot generate a search query, return just the number 0.
         auth_claims: dict[str, Any],
         should_stream: bool = False,
     ) -> tuple:
-        messages = self.get_messages_from_history(
-            system_prompt=self.query_prompt_template,
-            model_id=self.chatgpt_model,
-            history=history,
-            user_content="",
-            max_tokens=self.chatgpt_token_limit,
-            few_shots=self.query_prompt_few_shots,
-        )
+        # histryの最初の要素のroleがsystemでなければ、historyの最初にsystemの発言を追加する
+        if history[0]["role"] != "system":
+            history.insert(0, {"role": "system", "content": "you are an ai assistant"})
+
+        print(history)
 
         chatgpt_args = {"deployment_id": self.chatgpt_deployment} if self.openai_host == "azure" else {}
         chat_completion = await openai.ChatCompletion.acreate(
             **chatgpt_args,
             model=self.chatgpt_model,
-            messages=messages,
+            messages=history,
             temperature=0.0,
-            max_tokens=100,  # Setting too low risks malformed JSON, setting too high may affect performance
+            max_tokens=800,  # Setting too low risks malformed JSON, setting too high may affect performance
             n=1,
         )
-        msg_to_display = "\n\n".join([str(message) for message in messages])
-        extra_info = {
-            "data_points": "huga",
-            "thoughts": f"Searched for:<br>hoge<br><br>Conversations:<br>"
-            + msg_to_display.replace("\n", "<br>"),
-        }
-        return (extra_info, chat_completion)
+        return ({}, chat_completion)
 
 
 
@@ -109,12 +100,6 @@ If you cannot generate a search query, return just the number 0.
         auth_claims: dict[str, Any],
         should_stream: bool = False,
     ) -> tuple:
-        #has_text = overrides.get("retrieval_mode") in ["text", "hybrid", None]
-        #has_vector = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
-        #use_semantic_captions = True if overrides.get("semantic_captions") and has_text else False
-        #top = overrides.get("top", 3)
-        #filter = self.build_filter(overrides, auth_claims)
-
         # content = clientからのリクエストボディのmessages→ユーザーからの最新の入力を取得している
         original_user_query = history[-1]["content"]
         # 検索クエリを作るためのリクエストを作成
@@ -208,6 +193,11 @@ If you cannot generate a search query, return just the number 0.
                 async for doc in r
             ]
         else:
+            「sourcepage_field」フィールドには、検索結果が見つかったページまたはドキュメントの名前が含まれており、「content_field」フィールドには、検索結果の実際のコンテンツが含まれています。
+            #サンプルresults = [
+            #    "Document 1: This is the content of document 1.",
+            #    "Document 2: This is the content of document 2."
+            #]
             results = [doc[self.sourcepage_field] + ": " + nonewlines(doc[self.content_field]) async for doc in r]
         content = "\n".join(results)
         '''
@@ -282,7 +272,7 @@ If you cannot generate a search query, return just the number 0.
         auth_claims: dict[str, Any],
         session_state: Any = None,
     ) -> AsyncGenerator[dict, None]:
-        extra_info, chat_coroutine = await self.run_until_final_call(
+        extra_info, chat_coroutine = await self.run_simple_chat(
             history, overrides, auth_claims, should_stream=True
         )
         yield {
