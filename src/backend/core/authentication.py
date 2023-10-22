@@ -210,3 +210,26 @@ class AuthenticationHelper:
         except Exception:
             logging.exception("Exception getting authorization information")
             return {}
+        
+    async def get_graph_access_toke_if_enabled(self, headers: dict) -> str:
+        if not self.use_authentication:
+            return {}
+        try:
+            # Read the authentication token from the authorization header and exchange it using the On Behalf Of Flow
+            # The scope is set to the Microsoft Graph API, which may need to be called for more authorization information
+            # https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-on-behalf-of-flow
+            auth_token = AuthenticationHelper.get_token_auth_header(headers)
+            graph_resource_access_token = self.confidential_client.acquire_token_on_behalf_of(
+                user_assertion=auth_token, scopes=["https://graph.microsoft.com/.default"]
+            )
+            if "error" in graph_resource_access_token:
+                raise AuthError(error=str(graph_resource_access_token), status_code=401)
+            
+            return graph_resource_access_token["access_token"]
+        except AuthError as e:
+            print(e.error)
+            logging.exception("Exception getting authorization information - " + json.dumps(e.error))
+            return {}
+        except Exception:
+            logging.exception("Exception getting authorization information")
+            return {}

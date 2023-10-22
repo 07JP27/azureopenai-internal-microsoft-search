@@ -6,12 +6,14 @@ import aiohttp
 import openai
 from azure.search.documents.aio import SearchClient
 from azure.search.documents.models import QueryType
+from msgraph import GraphServiceClient
 
 from approaches.approach import Approach
 from core.messagebuilder import MessageBuilder
 from core.modelhelper import get_token_limit
 from text import nonewlines
 
+from core.graphclientbuilder import GraphClientBuilder
 
 class TestReadRetrieveReadApproach(Approach):
     # Chat roles
@@ -70,10 +72,17 @@ If you cannot generate a search query, return just the number 0.
     async def run_simple_chat(
         self,
         history: list[dict[str, str]],
-        overrides: dict[str, Any],
-        auth_claims: dict[str, Any],
+        graph_access_token,
         should_stream: bool = False,
     ) -> tuple:
+        
+        client = GraphClientBuilder.get_client(graph_access_token)
+        # self.graph_clientの認証ヘッダーにgraph_access_tokenをセットする
+        #self.graph_client.authentication_method_configurations.BaseRequestConfiguration.headers["Authorization"] = f"Bearer {graph_access_token}"
+        hoge = await client.users.by_user_id('d6bf2fdb-ef02-41a9-92b5-5a46b649faa4').get()
+        print("My user info:")
+        print(hoge)
+
         # histryの最初の要素のroleがsystemでなければ、historyの最初にsystemの発言を追加する
         if history[0]["role"] != "system":
             history.insert(0, {"role": "system", "content": "you are an ai assistant"})
@@ -104,6 +113,7 @@ If you cannot generate a search query, return just the number 0.
         original_user_query = history[-1]["content"]
         # 検索クエリを作るためのリクエストを作成
         user_query_request = "Generate search query for: " + original_user_query
+
 
         # Doc検索のためのファンクションを定義
         functions = [
@@ -193,11 +203,7 @@ If you cannot generate a search query, return just the number 0.
                 async for doc in r
             ]
         else:
-            「sourcepage_field」フィールドには、検索結果が見つかったページまたはドキュメントの名前が含まれており、「content_field」フィールドには、検索結果の実際のコンテンツが含まれています。
-            #サンプルresults = [
-            #    "Document 1: This is the content of document 1.",
-            #    "Document 2: This is the content of document 2."
-            #]
+            
             results = [doc[self.sourcepage_field] + ": " + nonewlines(doc[self.content_field]) async for doc in r]
         content = "\n".join(results)
         '''
@@ -228,11 +234,18 @@ If you cannot generate a search query, return just the number 0.
             model_id=self.chatgpt_model,
             history=history,
             # Model does not handle lengthy system messages well. Moving sources to latest user conversation to solve follow up questions prompt.
+            #Document 1: This is the content of document 1.
+            #Document 2: This is the content of document 2.
             user_content=original_user_query + "\n\nSources:\n" + content,
             max_tokens=messages_token_limit,
         )
         msg_to_display = "\n\n".join([str(message) for message in messages])
 
+        #「sourcepage_field」フィールドには、検索結果が見つかったページまたはドキュメントの名前が含まれており、「content_field」フィールドには、検索結果の実際のコンテンツが含まれています。
+        #サンプルresults = [
+        #    "Document 1: This is the content of document 1.",
+        #    "Document 2: This is the content of document 2."
+        #]
         extra_info = {
             "data_points": results,
             "thoughts": f"Searched for:<br>{query_text}<br><br>Conversations:<br>"
@@ -254,12 +267,16 @@ If you cannot generate a search query, return just the number 0.
         self,
         history: list[dict[str, str]],
         overrides: dict[str, Any],
-        auth_claims: dict[str, Any],
+        graph_access_token,
         session_state: Any = None,
     ) -> dict[str, Any]:
         extra_info, chat_coroutine = await self.run_simple_chat(
-            history, overrides, auth_claims, should_stream=False
+            history, graph_access_token, should_stream=False
         )
+
+        #extra_info, chat_coroutine = await self.run_until_final_call(
+        #    history, overrides, auth_claims, should_stream=False
+        #)
         chat_resp = dict(chat_coroutine)
         chat_resp["choices"][0]["context"] = extra_info
         chat_resp["choices"][0]["session_state"] = session_state
@@ -269,11 +286,11 @@ If you cannot generate a search query, return just the number 0.
         self,
         history: list[dict[str, str]],
         overrides: dict[str, Any],
-        auth_claims: dict[str, Any],
+        graph_access_token,
         session_state: Any = None,
     ) -> AsyncGenerator[dict, None]:
         extra_info, chat_coroutine = await self.run_simple_chat(
-            history, overrides, auth_claims, should_stream=True
+            history, overrides, should_stream=True
         )
         yield {
             "choices": [
@@ -297,15 +314,16 @@ If you cannot generate a search query, return just the number 0.
         self, messages: list[dict], stream: bool = False, session_state: Any = None, context: dict[str, Any] = {}
     ) -> Union[dict[str, Any], AsyncGenerator[dict[str, Any], None]]:
         overrides = context.get("overrides", {})
-        auth_claims = context.get("auth_claims", {})
+        #auth_claims = context.get("auth_claims", {})
+        graph_access_token = context.get("graph_access_token", {})
         if stream is False:
             # Workaround for: https://github.com/openai/openai-python/issues/371
             async with aiohttp.ClientSession() as s:
                 openai.aiosession.set(s)
-                response = await self.run_without_streaming(messages, overrides, auth_claims, session_state)
+                response = await self.run_without_streaming(messages, overrides,graph_access_token, session_state)
             return response
         else:
-            return self.run_with_streaming(messages, overrides, auth_claims, session_state)
+            return self.run_with_streaming(messages, overrides, graph_access_token, session_state)
 
     def get_messages_from_history(
         self,
