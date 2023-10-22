@@ -12,7 +12,8 @@ from approaches.approach import Approach
 from core.messagebuilder import MessageBuilder
 from core.modelhelper import get_token_limit
 from text import nonewlines
-
+from azure.identity.aio import OnBehalfOfCredential
+from quart import current_app
 from core.graphclientbuilder import GraphClientBuilder
 
 class TestReadRetrieveReadApproach(Approach):
@@ -72,14 +73,11 @@ If you cannot generate a search query, return just the number 0.
     async def run_simple_chat(
         self,
         history: list[dict[str, str]],
-        graph_access_token,
+        obo_token,
         should_stream: bool = False,
     ) -> tuple:
-        
-        client = GraphClientBuilder.get_client(graph_access_token)
-        # self.graph_clientの認証ヘッダーにgraph_access_tokenをセットする
-        #self.graph_client.authentication_method_configurations.BaseRequestConfiguration.headers["Authorization"] = f"Bearer {graph_access_token}"
-        hoge = await client.users.by_user_id('d6bf2fdb-ef02-41a9-92b5-5a46b649faa4').get()
+        client = GraphClientBuilder().get_client(obo_token)
+        hoge = await client.me.get()
         print("My user info:")
         print(hoge)
 
@@ -267,11 +265,11 @@ If you cannot generate a search query, return just the number 0.
         self,
         history: list[dict[str, str]],
         overrides: dict[str, Any],
-        graph_access_token,
+        obo_token,
         session_state: Any = None,
     ) -> dict[str, Any]:
         extra_info, chat_coroutine = await self.run_simple_chat(
-            history, graph_access_token, should_stream=False
+            history, obo_token, should_stream=False
         )
 
         #extra_info, chat_coroutine = await self.run_until_final_call(
@@ -286,7 +284,7 @@ If you cannot generate a search query, return just the number 0.
         self,
         history: list[dict[str, str]],
         overrides: dict[str, Any],
-        graph_access_token,
+        obo_token,
         session_state: Any = None,
     ) -> AsyncGenerator[dict, None]:
         extra_info, chat_coroutine = await self.run_simple_chat(
@@ -315,15 +313,15 @@ If you cannot generate a search query, return just the number 0.
     ) -> Union[dict[str, Any], AsyncGenerator[dict[str, Any], None]]:
         overrides = context.get("overrides", {})
         #auth_claims = context.get("auth_claims", {})
-        graph_access_token = context.get("graph_access_token", {})
+        obo_token = context.get("obo_token", {})
         if stream is False:
             # Workaround for: https://github.com/openai/openai-python/issues/371
             async with aiohttp.ClientSession() as s:
                 openai.aiosession.set(s)
-                response = await self.run_without_streaming(messages, overrides,graph_access_token, session_state)
+                response = await self.run_without_streaming(messages, overrides,obo_token, session_state)
             return response
         else:
-            return self.run_with_streaming(messages, overrides, graph_access_token, session_state)
+            return self.run_with_streaming(messages, overrides, obo_token, session_state)
 
     def get_messages_from_history(
         self,

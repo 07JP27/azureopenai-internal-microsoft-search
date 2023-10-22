@@ -13,4 +13,4 @@ opentelemetry-instrumentation-requests
 opentelemetry-instrumentation-aiohttp-client
 msal
 msal-extensions
-msgraph-sdk==1.0.0a16
+msgraph-sdk==1.0.0a14

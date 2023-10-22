@@ -326,4 +326,4 @@ zipp==3.17.0
 # setuptools
 
 
-msgraph-sdk==1.0.0a16
+msgraph-sdk==1.0.0a14

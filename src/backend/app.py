@@ -68,7 +68,7 @@ async def chat():
     context = request_json.get("context", {})
     auth_helper = current_app.config[CONFIG_AUTH_CLIENT]
     #context["auth_claims"] = await auth_helper.get_auth_claims_if_enabled(request.headers)
-    context["graph_access_token"] = await auth_helper.get_graph_access_toke_if_enabled(request.headers)
+    context["obo_token"] = auth_helper.get_token_auth_header(request.headers)
     try:
         approach = current_app.config[CONFIG_CHAT_APPROACH]
         result = await approach.run(
