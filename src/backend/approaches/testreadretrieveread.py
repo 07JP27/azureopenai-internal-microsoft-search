@@ -6,8 +6,11 @@ import aiohttp
 import openai
 from azure.search.documents.aio import SearchClient
 from azure.search.documents.models import QueryType
+from msgraph.generated.search.query.query_post_request_body import QueryPostRequestBody
+from msgraph.generated.models.search_request import SearchRequest
+from msgraph.generated.models.entity_type import EntityType
+from msgraph.generated.models.search_query import SearchQuery
 from msgraph import GraphServiceClient
-
 from approaches.approach import Approach
 from core.messagebuilder import MessageBuilder
 from core.modelhelper import get_token_limit
@@ -77,9 +80,27 @@ If you cannot generate a search query, return just the number 0.
         should_stream: bool = False,
     ) -> tuple:
         client = GraphClientBuilder().get_client(obo_token)
-        hoge = await client.me.get()
-        print("My user info:")
-        print(hoge)
+
+        #hoge = await client.me.get()
+        #print("My user info:")
+        #print(hoge)
+
+        request_body = QueryPostRequestBody(
+            requests=[
+                SearchRequest(
+                    entity_types=[EntityType.DriveItem],
+                    query=SearchQuery(
+                        query_string="github"
+                    ),
+                    from_=0,
+                    size=5
+                )
+            ]
+        )
+        
+        result = await client.search.query.post(body = request_body)
+        print(result)
+        
 
         # histryの最初の要素のroleがsystemでなければ、historyの最初にsystemの発言を追加する
         if history[0]["role"] != "system":
