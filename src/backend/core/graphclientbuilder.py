@@ -6,7 +6,6 @@ import asyncio
 
 class GraphClientBuilder: 
     def get_client(self, obo_token: str, scopes=['https://graph.microsoft.com/.default']):
-        print(scopes)
         credential = OnBehalfOfCredential(
             tenant_id=current_app.config["TENANT_ID"] ,
             client_id=current_app.config["CLIENT_ID"],
