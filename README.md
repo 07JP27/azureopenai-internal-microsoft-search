@@ -57,7 +57,7 @@
 ### 2.ローカル実行
 1. ターミナルなどでクローンしたファイルの「src/backend」に移動して「pip install -r requirements.txt」を実行します。パッケージのインストールが完了するまでしばらく待ちます。
 1. 別ターミナルなどを開きクローンしたファイルの「src/frontend」に移動して「npm install」を実行します。パッケージのインストールが完了するまでしばらく待ちます。
-1. 「src/backend」内に.envファイルを作成して.env-sampleに記載されている内容をコピーします。
+1. 「src/backend」内に.envファイルを作成して[.env-sample](./src/backend/.env-sample)に記載されている内容をコピーします。
 1. それぞれの環境変数にメモした情報などを入力します。
 1. 「src/backend」を開いているターミナルで「quart run」を実行します。
 1. 「src/frontend」を開いているターミナルで「npm run dev」を実行します。
