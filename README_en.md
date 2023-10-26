@@ -15,10 +15,10 @@ This app based on [Azure-Samples/azure-search-openai-demo](https://github.com/Az
 
 ### Tech Overview
 Architecturse
-![](./assets/overview_ja.png)
+![](./assets/overview_en.png)
 
 Sequence
-![](./assets/sequence_ja.png)
+![](./assets/sequence_en.png)
 
 
 ## How to setup

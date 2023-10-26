@@ -15,10 +15,10 @@
 
 ### 技術概要
 アーキテクチャ
-![](./assets/overview_en.png)
+![](./assets/overview_ja.png)
 
 シーケンス
-![](./assets/sequence_en.png)
+![](./assets/sequence_ja.png)
 
 
 ## セットアップ方法
