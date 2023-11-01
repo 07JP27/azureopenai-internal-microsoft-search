@@ -112,7 +112,7 @@ If you cannot generate a search query, return only the number 0.
         request_body = QueryPostRequestBody(
             requests=[
                 SearchRequest(
-                    entity_types=[EntityType.DriveItem],
+                    entity_types=[EntityType.ListItem],
                     query=SearchQuery(
                         query_string=generated_query
                     ),
@@ -135,7 +135,7 @@ If you cannot generate a search query, return only the number 0.
             {
                 "id": hit.resource.id,
                 "web_url": hit.resource.web_url,
-                "name": hit.resource.name,
+                "name": hit.resource.name or hit.resource.web_url.split("/")[-1]
             } for hit in search_result.value[0].hits_containers[0].hits
         ]
 
