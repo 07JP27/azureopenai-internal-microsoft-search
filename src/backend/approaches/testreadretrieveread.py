@@ -104,7 +104,7 @@ If you cannot generate a search query, return only the number 0.
             # TODO: クエリがない場合は通常の会話をする
             return ({}, chat_completion)
 
-        print("generated_query:"+generated_query)
+        print("Generated_query:"+generated_query)
 
         # Step2. クエリを使ってGraphを検索する
         client = GraphClientBuilder().get_client(obo_token)
@@ -131,14 +131,13 @@ If you cannot generate a search query, return only the number 0.
         ]
         content = "\n".join(results)
 
-        citaion_results = [
+        citaion_source = [
             {
                 "id": hit.resource.id,
                 "web_url": hit.resource.web_url,
                 "name": hit.resource.name,
             } for hit in search_result.value[0].hits_containers[0].hits
         ]
-
 
         # Step3. Graphから取得した結果をから回答を生成する
         response_token_limit = 1024
@@ -151,7 +150,9 @@ If you cannot generate a search query, return only the number 0.
             max_tokens=messages_token_limit,
         )
 
-        print(answer_messages)
+        extra_info = {
+            "data_points": citaion_source,
+        }
 
         chat_coroutine = await openai.ChatCompletion.acreate(
             **chatgpt_args,
@@ -162,7 +163,8 @@ If you cannot generate a search query, return only the number 0.
             n=1,
             stream=should_stream,
         )
-        return ({}, chat_coroutine)
+        
+        return (extra_info, chat_coroutine)
         
         
         
@@ -171,13 +173,8 @@ If you cannot generate a search query, return only the number 0.
         #if history[0]["role"] != "system":
         #   history.insert(0, {"role": "system", "content": "you are an ai assistant"})
 
-        print(history)
 
-        extra_info = {
-            "data_points": results,
-            "thoughts": f"Searched for:<br>{query_text}<br><br>Conversations:<br>"
-            + msg_to_display.replace("\n", "<br>"),
-        }
+        
 
         chat_completion = await openai.ChatCompletion.acreate(
             **chatgpt_args,
