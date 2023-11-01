@@ -67,7 +67,7 @@ export const Answer = ({
             {!!parsedAnswer.citations.length && (
                 <Stack.Item>
                     <Stack horizontal wrap tokens={{ childrenGap: 5 }}>
-                        <span className={styles.citationLearnMore}>Citations:</span>
+                        <span className={styles.citationLearnMore}>引用:</span>
                         {parsedAnswer.citations.map((x, i) => {
                             const source = getSourceInfomation(answer.choices[0].context.data_points ,x);
                             return (
