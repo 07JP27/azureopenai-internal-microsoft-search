@@ -44,14 +44,15 @@ Use double angle brackets to reference the questions, e.g. <<Are there exclusion
 Try not to repeat questions that have already been asked.
 Only generate questions and do not generate any text before or after the questions, such as 'Next Questions'"""
 
-    query_prompt_template = """Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about employee healthcare plans and the employee handbook.
-You have access to Azure Cognitive Search index with 100's of documents.
+    query_prompt_template = """Below is a history of previous conversations and new questions from users that need to be searched and answered in the knowledge base about the company.
+You have access to the Microsoft Search index, which contains over 100 documents.
 Generate a search query based on the conversation and the new question.
-Do not include cited source filenames and document names e.g info.txt or doc.pdf in the search query terms.
-Do not include any text inside [] or <<>> in the search query terms.
-Do not include any special characters like '+'.
-If the question is not in English, translate the question to English before generating the search query.
-If you cannot generate a search query, return just the number 0.
+Do not include the name of the cited file or document (e.g. info.txt or doc.pdf) in the search query term.
+Only display search terms, do not output quotation marks, etc.
+Do not include text in [] or <>> in search query terms.
+Do not include special characters such as [].
+If the question is not in English, please translate the question into English before generating the search query.
+If you cannot generate a search query, return only the number 0.
 """
     query_prompt_few_shots = [
         {"role": USER, "content": "What are my health plans?"},
@@ -79,36 +80,105 @@ If you cannot generate a search query, return just the number 0.
         obo_token,
         should_stream: bool = False,
     ) -> tuple:
-        client = GraphClientBuilder().get_client(obo_token)
+        # Step.1 ユーザーの入力からクエリを作成する
+        original_user_query = history[-1]["content"]
+        user_query_request = "Generate search query for: " + original_user_query
+        query_messages = [
+            {"role": self.SYSTEM, "content": self.query_prompt_template},
+            {"role": self.USER, "content": user_query_request}
+        ]
 
-        #hoge = await client.me.get()
-        #print("My user info:")
-        #print(hoge)
+        chatgpt_args = {"deployment_id": self.chatgpt_deployment} if self.openai_host == "azure" else {}
+        chat_completion = await openai.ChatCompletion.acreate(
+            **chatgpt_args,
+            model=self.chatgpt_model,
+            messages=query_messages,
+            temperature=0.0,
+            max_tokens=100,  # Setting too low risks malformed JSON, setting too high may affect performance
+            n=1
+        )
+
+        generated_query = chat_completion["choices"][0]["message"]["content"]
+
+        if generated_query == self.NO_RESPONSE: 
+            # TODO: クエリがない場合は通常の会話をする
+            return ({}, chat_completion)
+
+        print("generated_query:"+generated_query)
+
+        # Step2. クエリを使ってGraphを検索する
+        client = GraphClientBuilder().get_client(obo_token)
 
         request_body = QueryPostRequestBody(
             requests=[
                 SearchRequest(
                     entity_types=[EntityType.DriveItem],
                     query=SearchQuery(
-                        query_string="github"
+                        query_string=generated_query
                     ),
-                    from_=0,
                     size=5
                 )
             ]
         )
         
-        result = await client.search.query.post(body = request_body)
-        print(result)
+        search_result = await client.search.query.post(body = request_body)
         
+        #TODO:検索結果がゼロだった時の処理
+        print(search_result)
+        results = [
+                hit.resource.id + ": " + hit.summary
+                for hit in search_result.value[0].hits_containers[0].hits
+        ]
+        content = "\n".join(results)
 
+        citaion_results = [
+            {
+                "id": hit.resource.id,
+                "web_url": hit.resource.web_url,
+                "name": hit.resource.name,
+            } for hit in search_result.value[0].hits_containers[0].hits
+        ]
+
+
+        # Step3. Graphから取得した結果をから回答を生成する
+        response_token_limit = 1024
+        messages_token_limit = self.chatgpt_token_limit - response_token_limit
+        answer_messages = self.get_messages_from_history(
+            system_prompt=self.system_message_chat_conversation,
+            model_id=self.chatgpt_model,
+            history=history,
+            user_content=original_user_query + "\n\nSources:\n" + content,
+            max_tokens=messages_token_limit,
+        )
+
+        print(answer_messages)
+
+        chat_coroutine = await openai.ChatCompletion.acreate(
+            **chatgpt_args,
+            model=self.chatgpt_model,
+            messages=answer_messages,
+            temperature=0,
+            max_tokens=response_token_limit,
+            n=1,
+            stream=should_stream,
+        )
+        return ({}, chat_coroutine)
+        
+        
+        
+        
         # histryの最初の要素のroleがsystemでなければ、historyの最初にsystemの発言を追加する
-        if history[0]["role"] != "system":
-            history.insert(0, {"role": "system", "content": "you are an ai assistant"})
+        #if history[0]["role"] != "system":
+        #   history.insert(0, {"role": "system", "content": "you are an ai assistant"})
 
         print(history)
 
-        chatgpt_args = {"deployment_id": self.chatgpt_deployment} if self.openai_host == "azure" else {}
+        extra_info = {
+            "data_points": results,
+            "thoughts": f"Searched for:<br>{query_text}<br><br>Conversations:<br>"
+            + msg_to_display.replace("\n", "<br>"),
+        }
+
         chat_completion = await openai.ChatCompletion.acreate(
             **chatgpt_args,
             model=self.chatgpt_model,
@@ -117,7 +187,6 @@ If you cannot generate a search query, return just the number 0.
             max_tokens=800,  # Setting too low risks malformed JSON, setting too high may affect performance
             n=1,
         )
-        return ({}, chat_completion)
 
 
 
