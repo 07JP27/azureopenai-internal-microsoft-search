@@ -296,9 +296,9 @@ tzdata==2023.3
     # via pandas
 urllib3==2.0.7
     # via requests
-uvicorn[standard]==0.23.2
+uvicorn==0.23.2
     # via -r requirements.in
-uvloop==0.17.0
+# uvloop==0.17.0
     # via uvicorn
 watchfiles==0.20.0
     # via uvicorn
@@ -324,3 +324,6 @@ zipp==3.17.0
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
+
+microsoft-kiota-abstractions==0.8.5
+msgraph-sdk==1.0.0a15

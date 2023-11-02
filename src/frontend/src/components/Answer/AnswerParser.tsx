@@ -1,11 +1,20 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { getCitationFilePath } from "../../api";
+import { DataPoint, getCitationFilePath } from "../../api";
 
 type HtmlParsedAnswer = {
     answerHtml: string;
     citations: string[];
     followupQuestions: string[];
 };
+
+
+
+
+export function getSourceInfomation(dataPoints: DataPoint[], id:string): DataPoint {
+    //dataPointsの配列からidが一致するものを探す
+    const dataPoint = dataPoints.find((dataPoint) => dataPoint.id === id);
+    return dataPoint??  {id: "", name: "", web_url: ""}; 
+}
 
 export function parseAnswerToHtml(answer: string, isStreaming: boolean, onCitationClicked: (citationFilePath: string) => void): HtmlParsedAnswer {
     const citations: string[] = [];

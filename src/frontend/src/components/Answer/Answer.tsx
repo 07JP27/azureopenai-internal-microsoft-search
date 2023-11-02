@@ -5,7 +5,7 @@ import DOMPurify from "dompurify";
 import styles from "./Answer.module.css";
 
 import { ChatAppResponse, getCitationFilePath } from "../../api";
-import { parseAnswerToHtml } from "./AnswerParser";
+import { parseAnswerToHtml, getSourceInfomation } from "./AnswerParser";
 import { AnswerIcon } from "./AnswerIcon";
 
 interface Props {
@@ -67,12 +67,12 @@ export const Answer = ({
             {!!parsedAnswer.citations.length && (
                 <Stack.Item>
                     <Stack horizontal wrap tokens={{ childrenGap: 5 }}>
-                        <span className={styles.citationLearnMore}>Citations:</span>
+                        <span className={styles.citationLearnMore}>引用:</span>
                         {parsedAnswer.citations.map((x, i) => {
-                            const path = getCitationFilePath(x);
+                            const source = getSourceInfomation(answer.choices[0].context.data_points ,x);
                             return (
-                                <a key={i} className={styles.citation} title={x} onClick={() => onCitationClicked(path)}>
-                                    {`${++i}. ${x}`}
+                                <a key={i} className={styles.citation} title={source.name} href={source.web_url} target="_blank" /*onClick={() => onCitationClicked(source.web_url)}*/>
+                                    {`${++i}. ${source.name}`}
                                 </a>
                             );
                         })}

@@ -26,7 +26,13 @@ export type ResponseMessage = {
 
 export type ResponseContext = {
     thoughts: string | null;
-    data_points: string[];
+    data_points: DataPoint[];
+}
+
+export type DataPoint = {
+    id: string;
+    name: string;
+    web_url: string;
 }
 
 export type ResponseChoice = {

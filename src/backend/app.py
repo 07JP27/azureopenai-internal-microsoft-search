@@ -67,7 +67,8 @@ async def chat():
     request_json = await request.get_json()
     context = request_json.get("context", {})
     auth_helper = current_app.config[CONFIG_AUTH_CLIENT]
-    context["auth_claims"] = await auth_helper.get_auth_claims_if_enabled(request.headers)
+    #context["auth_claims"] = await auth_helper.get_auth_claims_if_enabled(request.headers)
+    context["obo_token"] = auth_helper.get_token_auth_header(request.headers)
     try:
         approach = current_app.config[CONFIG_CHAT_APPROACH]
         result = await approach.run(
@@ -158,8 +159,10 @@ async def setup_clients():
         openai.api_key = OPENAI_API_KEY
         openai.organization = OPENAI_ORGANIZATION
 
+    current_app.config["TENANT_ID"] = AZURE_TENANT_ID
+    current_app.config["CLIENT_ID"] = AZURE_SERVER_APP_ID
+    current_app.config["APP_SECRET"] = AZURE_SERVER_APP_SECRET
     current_app.config[CONFIG_CREDENTIAL] = azure_credential
-
     current_app.config[CONFIG_AUTH_CLIENT] = auth_helper
     current_app.config[CONFIG_CHAT_APPROACH] =TestReadRetrieveReadApproach( #ChatReadRetrieveReadApproach(
         OPENAI_HOST,
