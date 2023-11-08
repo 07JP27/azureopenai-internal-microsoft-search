@@ -71,9 +71,9 @@ export const Answer = ({
                         {parsedAnswer.citations.map((x, i) => {
                             const source = getSourceInfomation(answer.choices[0].context.data_points ,x);
                             return (
-                                <a key={i} className={styles.citation} title={source.name} href={source.web_url} target="_blank" /*onClick={() => onCitationClicked(source.web_url)}*/>
+                                <span key={i} className={styles.citation} title={source.name} onClick={() => onCitationClicked(source.hit_id)}>
                                     {`${++i}. ${source.name}`}
-                                </a>
+                                </span>
                             );
                         })}
                     </Stack>

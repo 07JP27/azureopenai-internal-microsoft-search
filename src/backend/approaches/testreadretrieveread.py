@@ -135,6 +135,7 @@ If you cannot generate a search query, return only the number 0.
             {
                 "id": hit.resource.id,
                 "web_url": hit.resource.web_url,
+                "hit_id": hit.hit_id,
                 "name": hit.resource.name or hit.resource.web_url.split("/")[-1]
             } for hit in search_result.value[0].hits_containers[0].hits
         ]

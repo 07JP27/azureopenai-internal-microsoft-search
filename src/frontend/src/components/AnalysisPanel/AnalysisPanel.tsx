@@ -50,7 +50,22 @@ export const AnalysisPanel = ({ answer, activeTab, activeCitation, citationHeigh
                 headerText="Citation"
                 headerButtonProps={isDisabledCitationTab ? pivotItemDisabledStyle : undefined}
             >
-                <iframe title="Citation" src={activeCitation} width="100%" height={citationHeight} />
+                {/* TODO: パワポ以外のファイルにも対応する */}
+                <iframe 
+                        src={`https://m365x52168024.sharepoint.com/_layouts/15/Doc.aspx?sourcedoc={${activeCitation}}&action=embedview&wdAr=1.7777777777777777`}
+                        width="100%" 
+                        height="810px"
+                    >
+                        This is an embedded
+                        <a target="_blank" href="https://office.com">
+                            Microsoft Office
+                        </a> 
+                        presentation, powered by 
+                        <a target="_blank" href="https://office.com/webapps">
+                            Office
+                        </a>
+                        .
+                    </iframe>
             </PivotItem>
         </Pivot>
     );

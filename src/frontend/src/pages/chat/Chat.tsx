@@ -310,7 +310,7 @@ const Chat = () => {
                         />
                     </div>
                 </div>
-
+                
                 {answers.length > 0 && activeAnalysisPanelTab && (
                     <AnalysisPanel
                         className={styles.chatAnalysisPanel}
