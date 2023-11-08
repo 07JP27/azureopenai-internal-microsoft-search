@@ -45,7 +45,8 @@ export const AnalysisPanel = ({ answer, activeTab, activeCitation, activeFileNam
             case 'pdf':
                 return `${pathWithoutLastSegment}/_layouts/15/embed.aspx?UniqueId=${activeCitation}`
             default:
-                return '';
+                // もう少し良い方法があるかも
+                return `${pathWithoutLastSegment}/_layouts/15/embed.aspx?UniqueId=${activeCitation}`
         }
     }
     
