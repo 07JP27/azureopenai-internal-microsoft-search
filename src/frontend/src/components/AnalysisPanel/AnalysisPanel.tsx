@@ -42,6 +42,8 @@ export const AnalysisPanel = ({ answer, activeTab, activeCitation, activeFileNam
                 return `${pathWithoutLastSegment}/_layouts/15/Doc.aspx?sourcedoc={${activeCitation}}&action=embedview&wdAllowInteractivity=False&wdDownloadButton=True&wdInConfigurator=True&wdInConfigurator=True`
             case 'docx':
                 return `${pathWithoutLastSegment}/_layouts/15/Doc.aspx?sourcedoc={${activeCitation}}&action=embedview`
+            case 'pdf':
+                return `${pathWithoutLastSegment}/_layouts/15/embed.aspx?UniqueId=${activeCitation}`
             default:
                 return '';
         }
