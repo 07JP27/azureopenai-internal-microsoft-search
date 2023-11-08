@@ -12,7 +12,7 @@ interface Props {
     answer: ChatAppResponse;
     isSelected?: boolean;
     isStreaming: boolean;
-    onCitationClicked: (filePath: string) => void;
+    onCitationClicked: (hit_id: string, web_url: string, file_name: string) => void;
     onThoughtProcessClicked: () => void;
     onSupportingContentClicked: () => void;
     onFollowupQuestionClicked?: (question: string) => void;
@@ -71,7 +71,7 @@ export const Answer = ({
                         {parsedAnswer.citations.map((x, i) => {
                             const source = getSourceInfomation(answer.choices[0].context.data_points ,x);
                             return (
-                                <span key={i} className={styles.citation} title={source.name} onClick={() => onCitationClicked(source.hit_id)}>
+                                <span key={i} className={styles.citation} title={source.name} onClick={() => onCitationClicked(source.hit_id, source.web_url, source.name)}>
                                     {`${++i}. ${source.name}`}
                                 </span>
                             );

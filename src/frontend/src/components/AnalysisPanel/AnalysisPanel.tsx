@@ -12,18 +12,38 @@ interface Props {
     activeTab: AnalysisPanelTabs;
     onActiveTabChanged: (tab: AnalysisPanelTabs) => void;
     activeCitation: string | undefined;
+    activeFileName: string | undefined;
+    activeWebURL: string | undefined;
     citationHeight: string;
     answer: ChatAppResponse;
 }
 
 const pivotItemDisabledStyle = { disabled: true, style: { color: "grey" } };
 
-export const AnalysisPanel = ({ answer, activeTab, activeCitation, citationHeight, className, onActiveTabChanged }: Props) => {
+export const AnalysisPanel = ({ answer, activeTab, activeCitation, activeFileName, activeWebURL, citationHeight, className, onActiveTabChanged }: Props) => {
     const isDisabledThoughtProcessTab: boolean = !answer.choices[0].context.thoughts;
     const isDisabledSupportingContentTab: boolean = !answer.choices[0].context.data_points.length;
     const isDisabledCitationTab: boolean = !activeCitation;
 
     const sanitizedThoughts = DOMPurify.sanitize(answer.choices[0].context.thoughts!);
+
+    const switchIframeURLByFileType = () => {
+        if (!activeFileName) {
+            return ''
+        }
+
+        const pathWithoutLastSegment = activeWebURL?.split('/').slice(0, -2).join('/');
+        
+        const fileExtension = activeFileName.split('.').pop()?.toLowerCase();
+        switch (fileExtension) {
+            case 'pptx':
+                return `https://m365x52168024.sharepoint.com/_layouts/15/Doc.aspx?sourcedoc={${activeCitation}}&action=embedview&wdAr=1.7777777777777777`;
+            case 'xlsx':
+                return `${pathWithoutLastSegment}/_layouts/15/Doc.aspx?sourcedoc={${activeCitation}}&action=embedview&wdAllowInteractivity=False&wdDownloadButton=True&wdInConfigurator=True&wdInConfigurator=True`
+            default:
+                return '';
+        }
+    }
 
     return (
         <Pivot
@@ -52,7 +72,7 @@ export const AnalysisPanel = ({ answer, activeTab, activeCitation, citationHeigh
             >
                 {/* TODO: パワポ以外のファイルにも対応する */}
                 <iframe 
-                        src={`https://m365x52168024.sharepoint.com/_layouts/15/Doc.aspx?sourcedoc={${activeCitation}}&action=embedview&wdAr=1.7777777777777777`}
+                        src={switchIframeURLByFileType()}
                         width="100%" 
                         height="810px"
                     >
