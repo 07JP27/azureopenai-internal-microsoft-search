@@ -40,10 +40,13 @@ export const AnalysisPanel = ({ answer, activeTab, activeCitation, activeFileNam
                 return `https://m365x52168024.sharepoint.com/_layouts/15/Doc.aspx?sourcedoc={${activeCitation}}&action=embedview&wdAr=1.7777777777777777`;
             case 'xlsx':
                 return `${pathWithoutLastSegment}/_layouts/15/Doc.aspx?sourcedoc={${activeCitation}}&action=embedview&wdAllowInteractivity=False&wdDownloadButton=True&wdInConfigurator=True&wdInConfigurator=True`
+            case 'docx':
+                return `${pathWithoutLastSegment}/_layouts/15/Doc.aspx?sourcedoc={${activeCitation}}&action=embedview`
             default:
                 return '';
         }
     }
+    
 
     return (
         <Pivot
@@ -80,7 +83,7 @@ export const AnalysisPanel = ({ answer, activeTab, activeCitation, activeFileNam
                         <a target="_blank" href="https://office.com">
                             Microsoft Office
                         </a> 
-                        presentation, powered by 
+                            powered by 
                         <a target="_blank" href="https://office.com/webapps">
                             Office
                         </a>
