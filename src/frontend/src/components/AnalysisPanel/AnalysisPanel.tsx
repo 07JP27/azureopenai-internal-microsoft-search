@@ -76,7 +76,6 @@ export const AnalysisPanel = ({ answer, activeTab, activeCitation, activeFileNam
                 headerText="Citation"
                 headerButtonProps={isDisabledCitationTab ? pivotItemDisabledStyle : undefined}
             >
-                {/* TODO: パワポ以外のファイルにも対応する */}
                 <iframe 
                         src={switchIframeURLByFileType()}
                         width="100%" 
