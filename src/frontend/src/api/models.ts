@@ -33,6 +33,7 @@ export type DataPoint = {
     id: string;
     name: string;
     web_url: string;
+    hit_id: string;
 }
 
 export type ResponseChoice = {

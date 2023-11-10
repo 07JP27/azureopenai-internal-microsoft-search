@@ -38,6 +38,8 @@ const Chat = () => {
     const [error, setError] = useState<unknown>();
 
     const [activeCitation, setActiveCitation] = useState<string>();
+    const [activeFileName, setActiveFileName] = useState<string>();
+    const [activeWebURL, setActiveWebURL] = useState<string>();
     const [activeAnalysisPanelTab, setActiveAnalysisPanelTab] = useState<AnalysisPanelTabs | undefined>(undefined);
 
     const [selectedAnswer, setSelectedAnswer] = useState<number>(0);
@@ -96,6 +98,8 @@ const Chat = () => {
         error && setError(undefined);
         setIsLoading(true);
         setActiveCitation(undefined);
+        setActiveFileName(undefined);
+        setActiveWebURL(undefined);
         setActiveAnalysisPanelTab(undefined);
 
         const token = client ? await getToken(client) : undefined;
@@ -151,6 +155,8 @@ const Chat = () => {
         lastQuestionRef.current = "";
         error && setError(undefined);
         setActiveCitation(undefined);
+        setActiveFileName(undefined);
+        setActiveWebURL(undefined);
         setActiveAnalysisPanelTab(undefined);
         setAnswers([]);
         setStreamedAnswers([]);
@@ -205,11 +211,13 @@ const Chat = () => {
         makeApiRequest(example);
     };
 
-    const onShowCitation = (citation: string, index: number) => {
+    const onShowCitation = (citation: string, file_name: string, web_url: string, index: number) => {
         if (activeCitation === citation && activeAnalysisPanelTab === AnalysisPanelTabs.CitationTab && selectedAnswer === index) {
             setActiveAnalysisPanelTab(undefined);
         } else {
             setActiveCitation(citation);
+            setActiveFileName(file_name);
+            setActiveWebURL(web_url)
             setActiveAnalysisPanelTab(AnalysisPanelTabs.CitationTab);
         }
 
@@ -253,7 +261,7 @@ const Chat = () => {
                                                 key={index}
                                                 answer={streamedAnswer[1]}
                                                 isSelected={false}
-                                                onCitationClicked={c => onShowCitation(c, index)}
+                                                onCitationClicked={(hit_id, web_url, file_name) => onShowCitation(hit_id, web_url, file_name, index)}
                                                 onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
                                                 onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
                                                 onFollowupQuestionClicked={q => makeApiRequest(q)}
@@ -272,7 +280,7 @@ const Chat = () => {
                                                 key={index}
                                                 answer={answer[1]}
                                                 isSelected={selectedAnswer === index && activeAnalysisPanelTab !== undefined}
-                                                onCitationClicked={c => onShowCitation(c, index)}
+                                                onCitationClicked={(hit_id, web_url, file_name) => onShowCitation(hit_id, file_name, web_url, index)}
                                                 onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
                                                 onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
                                                 onFollowupQuestionClicked={q => makeApiRequest(q)}
@@ -319,6 +327,8 @@ const Chat = () => {
                         citationHeight="810px"
                         answer={answers[selectedAnswer][1]}
                         activeTab={activeAnalysisPanelTab}
+                        activeFileName={activeFileName}
+                        activeWebURL={activeWebURL}
                     />
                 )}
 
