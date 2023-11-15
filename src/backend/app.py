@@ -1,36 +1,25 @@
-import io
-import json
 import logging
-import mimetypes
 import os
 import time
 from pathlib import Path
-from typing import AsyncGenerator
 
-
-import aiohttp
 import openai
 from azure.identity.aio import DefaultAzureCredential
 from azure.monitor.opentelemetry import configure_azure_monitor
-from azure.search.documents.aio import SearchClient
-from azure.storage.blob.aio import BlobServiceClient
 from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
 from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
 from quart import (
     Blueprint,
     Quart,
-    abort,
     current_app,
     jsonify,
     make_response,
     request,
-    send_file,
     send_from_directory,
 )
 from quart_cors import cors
 
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
-from approaches.testreadretrieveread import TestReadRetrieveReadApproach
 from core.authentication import AuthenticationHelper
 
 CONFIG_OPENAI_TOKEN = "openai_token"
@@ -67,7 +56,6 @@ async def chat():
     request_json = await request.get_json()
     context = request_json.get("context", {})
     auth_helper = current_app.config[CONFIG_AUTH_CLIENT]
-    #context["auth_claims"] = await auth_helper.get_auth_claims_if_enabled(request.headers)
     context["obo_token"] = auth_helper.get_token_auth_header(request.headers)
     try:
         approach = current_app.config[CONFIG_CHAT_APPROACH]
@@ -164,7 +152,7 @@ async def setup_clients():
     current_app.config["APP_SECRET"] = AZURE_SERVER_APP_SECRET
     current_app.config[CONFIG_CREDENTIAL] = azure_credential
     current_app.config[CONFIG_AUTH_CLIENT] = auth_helper
-    current_app.config[CONFIG_CHAT_APPROACH] =TestReadRetrieveReadApproach( #ChatReadRetrieveReadApproach(
+    current_app.config[CONFIG_CHAT_APPROACH] = ChatReadRetrieveReadApproach(
         OPENAI_HOST,
         AZURE_OPENAI_CHATGPT_DEPLOYMENT,
         OPENAI_CHATGPT_MODEL,

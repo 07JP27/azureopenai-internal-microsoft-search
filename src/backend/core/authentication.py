@@ -1,12 +1,10 @@
 # Refactored from https://github.com/Azure-Samples/ms-identity-python-on-behalf-of
 
-import json
 import logging
 import os
 from tempfile import TemporaryDirectory
 from typing import Any, Optional
 
-import aiohttp
 from msal import ConfidentialClientApplication
 from msal_extensions import (
     FilePersistence,

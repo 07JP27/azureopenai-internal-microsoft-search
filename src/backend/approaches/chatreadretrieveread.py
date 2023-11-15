@@ -4,14 +4,14 @@ from typing import Any, AsyncGenerator, Optional, Union
 
 import aiohttp
 import openai
-from azure.search.documents.aio import SearchClient
-from azure.search.documents.models import QueryType
-
+from msgraph.generated.search.query.query_post_request_body import QueryPostRequestBody
+from msgraph.generated.models.search_request import SearchRequest
+from msgraph.generated.models.entity_type import EntityType
+from msgraph.generated.models.search_query import SearchQuery
 from approaches.approach import Approach
 from core.messagebuilder import MessageBuilder
 from core.modelhelper import get_token_limit
-from text import nonewlines
-
+from core.graphclientbuilder import GraphClientBuilder
 
 class ChatReadRetrieveReadApproach(Approach):
     # Chat roles
@@ -38,14 +38,15 @@ Use double angle brackets to reference the questions, e.g. <<Are there exclusion
 Try not to repeat questions that have already been asked.
 Only generate questions and do not generate any text before or after the questions, such as 'Next Questions'"""
 
-    query_prompt_template = """Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about employee healthcare plans and the employee handbook.
-You have access to Azure Cognitive Search index with 100's of documents.
+    query_prompt_template = """Below is a history of previous conversations and new questions from users that need to be searched and answered in the knowledge base about the company.
+You have access to the Microsoft Search index, which contains over 100 documents.
 Generate a search query based on the conversation and the new question.
-Do not include cited source filenames and document names e.g info.txt or doc.pdf in the search query terms.
-Do not include any text inside [] or <<>> in the search query terms.
-Do not include any special characters like '+'.
-If the question is not in English, translate the question to English before generating the search query.
-If you cannot generate a search query, return just the number 0.
+Do not include the name of the cited file or document (e.g. info.txt or doc.pdf) in the search query term.
+Only display search terms, do not output quotation marks, etc.
+Do not include text in [] or <>> in search query terms.
+Do not include special characters such as [].
+If the question is not in English, please translate the question into English before generating the search query.
+If you cannot generate a search query, return only the number 0.
 """
     query_prompt_few_shots = [
         {"role": USER, "content": "What are my health plans?"},
@@ -59,15 +60,105 @@ If you cannot generate a search query, return just the number 0.
         openai_host: str,
         chatgpt_deployment: Optional[str],  # Not needed for non-Azure OpenAI
         chatgpt_model: str,
-        #sourcepage_field: str,
-        #content_field: str,
     ):
         self.openai_host = openai_host
         self.chatgpt_deployment = chatgpt_deployment
         self.chatgpt_model = chatgpt_model
-        #self.sourcepage_field = sourcepage_field
-        #self.content_field = content_field
         self.chatgpt_token_limit = get_token_limit(chatgpt_model)
+
+    async def run_simple_chat(
+        self,
+        history: list[dict[str, str]],
+        obo_token,
+        should_stream: bool = False,
+    ) -> tuple:
+        # Step.1 ユーザーの入力からクエリを作成する
+        original_user_query = history[-1]["content"]
+        user_query_request = "Generate search query for: " + original_user_query
+        query_messages = [
+            {"role": self.SYSTEM, "content": self.query_prompt_template},
+            {"role": self.USER, "content": user_query_request}
+        ]
+
+        chatgpt_args = {"deployment_id": self.chatgpt_deployment} if self.openai_host == "azure" else {}
+        chat_completion = await openai.ChatCompletion.acreate(
+            **chatgpt_args,
+            model=self.chatgpt_model,
+            messages=query_messages,
+            temperature=0.0,
+            max_tokens=100,  # Setting too low risks malformed JSON, setting too high may affect performance
+            n=1
+        )
+
+        generated_query = chat_completion["choices"][0]["message"]["content"]
+
+        if generated_query == self.NO_RESPONSE: 
+            # TODO: クエリがない場合は通常の会話をする
+            return ({}, chat_completion)
+
+        print("Generated_query:"+generated_query)
+
+        # Step2. クエリを使ってGraphを検索する
+        client = GraphClientBuilder().get_client(obo_token)
+
+        request_body = QueryPostRequestBody(
+            requests=[
+                SearchRequest(
+                    entity_types=[EntityType.ListItem],
+                    query=SearchQuery(
+                        query_string=generated_query
+                    ),
+                    size=5
+                )
+            ]
+        )
+        
+        search_result = await client.search.query.post(body = request_body)
+        
+        #TODO:検索結果がゼロだった時の処理
+        print(search_result)
+        results = [
+                hit.resource.id + ": " + hit.summary
+                for hit in search_result.value[0].hits_containers[0].hits
+        ]
+        content = "\n".join(results)
+
+        citaion_source = [
+            {
+                "id": hit.resource.id,
+                "web_url": hit.resource.web_url,
+                "hit_id": hit.hit_id,
+                "name": hit.resource.name or hit.resource.web_url.split("/")[-1]
+            } for hit in search_result.value[0].hits_containers[0].hits
+        ]
+
+        # Step3. Graphから取得した結果をから回答を生成する
+        response_token_limit = 1024
+        messages_token_limit = self.chatgpt_token_limit - response_token_limit
+        answer_messages = self.get_messages_from_history(
+            system_prompt=self.system_message_chat_conversation,
+            model_id=self.chatgpt_model,
+            history=history,
+            user_content=original_user_query + "\n\nSources:\n" + content,
+            max_tokens=messages_token_limit,
+        )
+
+        extra_info = {
+            "data_points": citaion_source,
+        }
+
+        chat_coroutine = await openai.ChatCompletion.acreate(
+            **chatgpt_args,
+            model=self.chatgpt_model,
+            messages=answer_messages,
+            temperature=0,
+            max_tokens=response_token_limit,
+            n=1,
+            stream=should_stream,
+        )
+        
+        return (extra_info, chat_coroutine)
+
 
     async def run_until_final_call(
         self,
@@ -76,16 +167,13 @@ If you cannot generate a search query, return just the number 0.
         auth_claims: dict[str, Any],
         should_stream: bool = False,
     ) -> tuple:
-        has_text = overrides.get("retrieval_mode") in ["text", "hybrid", None]
-        has_vector = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
-        use_semantic_captions = True if overrides.get("semantic_captions") and has_text else False
-        top = overrides.get("top", 3)
-        filter = self.build_filter(overrides, auth_claims) # auth_claimsはコンテンツフィルターのために必要
-
-        # 
+        # content = clientからのリクエストボディのmessages→ユーザーからの最新の入力を取得している
         original_user_query = history[-1]["content"]
+        # 検索クエリを作るためのリクエストを作成
         user_query_request = "Generate search query for: " + original_user_query
 
+
+        # Doc検索のためのファンクションを定義
         functions = [
             {
                 "name": "search_sources",
@@ -103,7 +191,8 @@ If you cannot generate a search query, return just the number 0.
             }
         ]
 
-        # STEP 1: Generate an optimized keyword search query based on the chat history and the last question
+        # STEP 1: チャット履歴と最後の質問に基づいて、最適化されたキーワード検索クエリを生成します。
+        # システムプロンプトにクエリ生成用のテンプレートをセットしてクエリを生成するためのメッセージリストを生成
         messages = self.get_messages_from_history(
             system_prompt=self.query_prompt_template,
             model_id=self.chatgpt_model,
@@ -125,61 +214,15 @@ If you cannot generate a search query, return just the number 0.
             function_call="auto",
         )
 
+        # GPTから得られた結果(chat_completion)からFunction Calling用の引数またはGPTの返信そのものを使用してクエリを取得する。クエリが生成できなかった場合(chat_completion=0)は、ユーザーの質問をそのままクエリとする。
         query_text = self.get_search_query(chat_completion, original_user_query)
 
-        # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
-
-        # If retrieval mode includes vectors, compute an embedding for the query
-        if has_vector:
-            embedding_args = {"deployment_id": self.embedding_deployment} if self.openai_host == "azure" else {}
-            embedding = await openai.Embedding.acreate(**embedding_args, model=self.embedding_model, input=query_text)
-            query_vector = embedding["data"][0]["embedding"]
-        else:
-            query_vector = None
-
-        # Only keep the text query if the retrieval mode uses text, otherwise drop it
-        if not has_text:
-            query_text = None
-
-        # Use semantic L2 reranker if requested and if retrieval mode is text or hybrid (vectors + text)
-        if overrides.get("semantic_ranker") and has_text:
-            r = await self.search_client.search(
-                query_text,
-                filter=filter,
-                query_type=QueryType.SEMANTIC,
-                query_language=self.query_language,
-                query_speller=self.query_speller,
-                semantic_configuration_name="default",
-                top=top,
-                query_caption="extractive|highlight-false" if use_semantic_captions else None,
-                vector=query_vector,
-                top_k=50 if query_vector else None,
-                vector_fields="embedding" if query_vector else None,
-            )
-        else:
-            r = await self.search_client.search(
-                query_text,
-                filter=filter,
-                top=top,
-                vector=query_vector,
-                top_k=50 if query_vector else None,
-                vector_fields="embedding" if query_vector else None,
-            )
-        if use_semantic_captions:
-            results = [
-                doc[self.sourcepage_field] + ": " + nonewlines(" . ".join([c.text for c in doc["@search.captions"]]))
-                async for doc in r
-            ]
-        else:
-            results = [doc[self.sourcepage_field] + ": " + nonewlines(doc[self.content_field]) async for doc in r]
-        content = "\n".join(results)
-
+        # STEP 2: GPTに最適化されたクエリで検索インデックスから関連文書を取得する。
         follow_up_questions_prompt = (
             self.follow_up_questions_prompt_content if overrides.get("suggest_followup_questions") else ""
         )
 
         # STEP 3: Generate a contextual and content specific answer using the search results and chat history
-
         # Allow client to replace the entire prompt, or to inject into the exiting prompt using >>>
         prompt_override = overrides.get("prompt_template")
         if prompt_override is None:
@@ -200,11 +243,18 @@ If you cannot generate a search query, return just the number 0.
             model_id=self.chatgpt_model,
             history=history,
             # Model does not handle lengthy system messages well. Moving sources to latest user conversation to solve follow up questions prompt.
+            #Document 1: This is the content of document 1.
+            #Document 2: This is the content of document 2.
             user_content=original_user_query + "\n\nSources:\n" + content,
             max_tokens=messages_token_limit,
         )
         msg_to_display = "\n\n".join([str(message) for message in messages])
 
+        #「sourcepage_field」フィールドには、検索結果が見つかったページまたはドキュメントの名前が含まれており、「content_field」フィールドには、検索結果の実際のコンテンツが含まれています。
+        #サンプルresults = [
+        #    "Document 1: This is the content of document 1.",
+        #    "Document 2: This is the content of document 2."
+        #]
         extra_info = {
             "data_points": results,
             "thoughts": f"Searched for:<br>{query_text}<br><br>Conversations:<br>"
@@ -226,13 +276,17 @@ If you cannot generate a search query, return just the number 0.
         self,
         history: list[dict[str, str]],
         overrides: dict[str, Any],
-        auth_claims: dict[str, Any],
+        obo_token,
         session_state: Any = None,
     ) -> dict[str, Any]:
-        extra_info, chat_coroutine = await self.run_until_final_call(
-            history, overrides, auth_claims, should_stream=False
+        extra_info, chat_coroutine = await self.run_simple_chat(
+            history, obo_token, should_stream=False
         )
-        chat_resp = dict(await chat_coroutine)
+
+        #extra_info, chat_coroutine = await self.run_until_final_call(
+        #    history, overrides, auth_claims, should_stream=False
+        #)
+        chat_resp = dict(chat_coroutine)
         chat_resp["choices"][0]["context"] = extra_info
         chat_resp["choices"][0]["session_state"] = session_state
         return chat_resp
@@ -241,11 +295,11 @@ If you cannot generate a search query, return just the number 0.
         self,
         history: list[dict[str, str]],
         overrides: dict[str, Any],
-        auth_claims: dict[str, Any],
+        obo_token,
         session_state: Any = None,
     ) -> AsyncGenerator[dict, None]:
-        extra_info, chat_coroutine = await self.run_until_final_call(
-            history, overrides, auth_claims, should_stream=True
+        extra_info, chat_coroutine = await self.run_simple_chat(
+            history, overrides, should_stream=True
         )
         yield {
             "choices": [
@@ -269,15 +323,15 @@ If you cannot generate a search query, return just the number 0.
         self, messages: list[dict], stream: bool = False, session_state: Any = None, context: dict[str, Any] = {}
     ) -> Union[dict[str, Any], AsyncGenerator[dict[str, Any], None]]:
         overrides = context.get("overrides", {})
-        auth_claims = context.get("auth_claims", {})
+        obo_token = context.get("obo_token", {})
         if stream is False:
             # Workaround for: https://github.com/openai/openai-python/issues/371
             async with aiohttp.ClientSession() as s:
                 openai.aiosession.set(s)
-                response = await self.run_without_streaming(messages, overrides, auth_claims, session_state)
+                response = await self.run_without_streaming(messages, overrides,obo_token, session_state)
             return response
         else:
-            return self.run_with_streaming(messages, overrides, auth_claims, session_state)
+            return self.run_with_streaming(messages, overrides, obo_token, session_state)
 
     def get_messages_from_history(
         self,
