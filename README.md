@@ -16,7 +16,8 @@
 ### 機能
 - Microsoft 365内のドキュメントやサイト、Teamsの投稿などを基にしたLLMによるチャット形式の内部ナレッジ検索
 - Microsoft 365でも使用されるMicrosoft Search APIを使用したシンプルかつ高精度なRAGアーキテクチャ
-- [On-Behalf-Of フロー](https://learn.microsoft.com/ja-jp/entra/identity-platform/v2-oauth2-on-behalf-of-flow)を使用してユーザーの権限に応じた検索
+- [On-Behalf-Of フロー](https://learn.microsoft.com/ja-jp/entra/identity-platform/v2-oauth2-on-behalf-of-flow)を使用した元データに付与されたユーザーごとの権限に応じた検索
+![権限が異なるファイルを別々のユーザーが同じ入力で検索した結果](./assets/permission-sample.png)
 
 ### 技術概要
 アーキテクチャ
