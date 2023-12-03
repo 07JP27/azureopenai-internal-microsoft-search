@@ -111,7 +111,7 @@ If you cannot generate a search query, return only the number 0.
             }
             return ({}, query_not_found_msg)
 
-        print("Generated_query:"+generated_query)
+        #print("Generated_query:"+generated_query)
 
         # Step2. クエリを使ってGraphを検索する
         client = GraphClientBuilder().get_client(obo_token)
@@ -144,7 +144,7 @@ If you cannot generate a search query, return only the number 0.
             }
             return ({}, source_not_found_msg)
 
-        print(search_result)
+        #print(search_result)
         results = [
                 hit.resource.id + ": " + hit.summary
                 for hit in search_result.value[0].hits_containers[0].hits
