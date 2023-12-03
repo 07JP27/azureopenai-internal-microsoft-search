@@ -145,6 +145,7 @@ If you cannot generate a search query, return only the number 0.
             return ({}, source_not_found_msg)
 
         #print(search_result)
+        #ここではsummaryをソースにしているが、文章量によってはコンテンツ別にデータを取ったほうがいいかもしれない
         results = [
                 hit.resource.id + ": " + hit.summary
                 for hit in search_result.value[0].hits_containers[0].hits
