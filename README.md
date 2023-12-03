@@ -78,8 +78,6 @@ https://github.com/07JP27/azureopenai-internal-microsoft-search/blob/52053b6c672
 1. 入力エリアに質問を入力してチャットを開始します。
 
 ### 4.Azureへのデプロイ
+TBW
 
 
-
-
-https://learn.microsoft.com/ja-jp/graph/sdks/choose-authentication-providers?tabs=python#on-behalf-of-provider

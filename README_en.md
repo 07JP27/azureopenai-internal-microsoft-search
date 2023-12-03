@@ -76,6 +76,4 @@ https://github.com/07JP27/azureopenai-internal-microsoft-search/blob/52053b6c672
 1. Enter a question in the input area and start the chat.
 
 ### 4. Deployment to Azure
-
-
-https://learn.microsoft.com/ja-jp/graph/sdks/choose-authentication-providers?tabs=python#on-behalf-of-provider
+TBW
