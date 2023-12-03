@@ -45,14 +45,14 @@ Do not include the name of the cited file or document (e.g. info.txt or doc.pdf)
 Only display search terms, do not output quotation marks, etc.
 Do not include text in [] or <>> in search query terms.
 Do not include special characters such as [].
-If the question is not in English, please translate the question into English before generating the search query.
+If the question is not in English, generating the search query in the language used in the question.
 If you cannot generate a search query, return only the number 0.
 """
     query_prompt_few_shots = [
-        {"role": USER, "content": "What are my health plans?"},
-        {"role": ASSISTANT, "content": "Show available health plans"},
-        {"role": USER, "content": "does my plan cover cardio?"},
-        {"role": ASSISTANT, "content": "Health plan cardio coverage"},
+        {"role": USER, "content": "私のヘルスプランについて教えてください。"},
+        {"role": ASSISTANT, "content": "利用可能 ヘルスプラン"},
+        {"role": USER, "content": "私のプランには有酸素運動は含まれていますか？"},
+        {"role": ASSISTANT, "content": "ヘルスプラン 有酸素運動 適用範囲"},
     ]
 
     def __init__(
@@ -75,10 +75,15 @@ If you cannot generate a search query, return only the number 0.
         # Step.1 ユーザーの入力からクエリを作成する
         original_user_query = history[-1]["content"]
         user_query_request = "Generate search query for: " + original_user_query
-        query_messages = [
-            {"role": self.SYSTEM, "content": self.query_prompt_template},
-            {"role": self.USER, "content": user_query_request}
-        ]
+        
+        query_messages = self.get_messages_from_history(
+            system_prompt=self.query_prompt_template,
+            model_id=self.chatgpt_model,
+            history=history,
+            user_content=user_query_request,
+            max_tokens=self.chatgpt_token_limit - len(user_query_request),
+            few_shots=self.query_prompt_few_shots,
+        )
 
         chatgpt_args = {"deployment_id": self.chatgpt_deployment} if self.openai_host == "azure" else {}
         chat_completion = await openai.ChatCompletion.acreate(
@@ -94,7 +99,17 @@ If you cannot generate a search query, return only the number 0.
 
         if generated_query == self.NO_RESPONSE: 
             # TODO: クエリがない場合は通常の会話をする
-            return ({}, chat_completion)
+            query_not_found_msg ={
+                'choices':[
+                    {
+                        'message':{
+                            'role':"assistant",
+                            'content':"あなたの入力には知りたいことが含まれていないようです。何について調べますか？"
+                        }
+                    }
+                ]
+            }
+            return ({}, query_not_found_msg)
 
         print("Generated_query:"+generated_query)
 
@@ -108,14 +123,27 @@ If you cannot generate a search query, return only the number 0.
                     query=SearchQuery(
                         query_string=generated_query
                     ),
-                    size=5
+                    size=1 #取得するページのサイズ。いっぱい取得してもtoken上限で使わないので1でいい
                 )
             ]
         )
         
         search_result = await client.search.query.post(body = request_body)
         
-        #TODO:検索結果がゼロだった時の処理
+        #search_resultがない場合は、クエリ生成したクエリを返す
+        if search_result.value[0].hits_containers[0].total == 0:
+            source_not_found_msg ={
+                'choices':[
+                    {
+                        'message':{
+                            'role':"assistant",
+                            'content':f"「{generated_query}」で検索しましたが、情報源を見つけられませんでした。"
+                        }
+                    }
+                ]
+            }
+            return ({}, source_not_found_msg)
+
         print(search_result)
         results = [
                 hit.resource.id + ": " + hit.summary
@@ -159,7 +187,114 @@ If you cannot generate a search query, return only the number 0.
         
         return (extra_info, chat_coroutine)
 
+    
+    async def run_without_streaming(
+        self,
+        history: list[dict[str, str]],
+        overrides: dict[str, Any],
+        obo_token,
+        session_state: Any = None,
+    ) -> dict[str, Any]:
+        extra_info, chat_coroutine = await self.run_simple_chat(
+            history, obo_token, should_stream=False
+        )
 
+        #extra_info, chat_coroutine = await self.run_until_final_call(
+        #    history, overrides, auth_claims, should_stream=False
+        #)
+        chat_resp = dict(chat_coroutine)
+        chat_resp["choices"][0]["context"] = extra_info
+        chat_resp["choices"][0]["session_state"] = session_state
+        return chat_resp
+
+    async def run_with_streaming(
+        self,
+        history: list[dict[str, str]],
+        overrides: dict[str, Any],
+        obo_token,
+        session_state: Any = None,
+    ) -> AsyncGenerator[dict, None]:
+        extra_info, chat_coroutine = await self.run_simple_chat(
+            history, overrides, should_stream=True
+        )
+        yield {
+            "choices": [
+                {
+                    "delta": {"role": self.ASSISTANT},
+                    "context": extra_info,
+                    "session_state": session_state,
+                    "finish_reason": None,
+                    "index": 0,
+                }
+            ],
+            "object": "chat.completion.chunk",
+        }
+
+        async for event in await chat_coroutine:
+            # "2023-07-01-preview" API version has a bug where first response has empty choices
+            if event["choices"]:
+                yield event
+
+    async def run(
+        self, messages: list[dict], stream: bool = False, session_state: Any = None, context: dict[str, Any] = {}
+    ) -> Union[dict[str, Any], AsyncGenerator[dict[str, Any], None]]:
+        overrides = context.get("overrides", {})
+        obo_token = context.get("obo_token", {})
+        if stream is False:
+            # Workaround for: https://github.com/openai/openai-python/issues/371
+            async with aiohttp.ClientSession() as s:
+                openai.aiosession.set(s)
+                response = await self.run_without_streaming(messages, overrides,obo_token, session_state)
+            return response
+        else:
+            return self.run_with_streaming(messages, overrides, obo_token, session_state)
+
+    def get_messages_from_history(
+        self,
+        system_prompt: str,
+        model_id: str,
+        history: list[dict[str, str]],
+        user_content: str,
+        max_tokens: int,
+        few_shots=[],
+    ) -> list:
+        message_builder = MessageBuilder(system_prompt, model_id)
+
+        # Add examples to show the chat what responses we want. It will try to mimic any responses and make sure they match the rules laid out in the system message.
+        for shot in few_shots:
+            message_builder.append_message(shot.get("role"), shot.get("content"))
+
+        append_index = len(few_shots) + 1
+
+        message_builder.append_message(self.USER, user_content, index=append_index)
+        total_token_count = message_builder.count_tokens_for_message(message_builder.messages[-1])
+
+        newest_to_oldest = list(reversed(history[:-1]))
+        for message in newest_to_oldest:
+            potential_message_count = message_builder.count_tokens_for_message(message)
+            if (total_token_count + potential_message_count) > max_tokens:
+                logging.debug("Reached max tokens of %d, history will be truncated", max_tokens)
+                break
+            message_builder.append_message(message["role"], message["content"], index=append_index)
+            total_token_count += potential_message_count
+        return message_builder.messages
+
+    def get_search_query(self, chat_completion: dict[str, Any], user_query: str):
+        response_message = chat_completion["choices"][0]["message"]
+        if function_call := response_message.get("function_call"):
+            if function_call["name"] == "search_sources":
+                arg = json.loads(function_call["arguments"])
+                search_query = arg.get("search_query", self.NO_RESPONSE)
+                if search_query != self.NO_RESPONSE:
+                    return search_query
+        elif query_text := response_message.get("content"):
+            if query_text.strip() != self.NO_RESPONSE:
+                return query_text
+        return user_query
+    
+
+
+    '''参考元コード
     async def run_until_final_call(
         self,
         history: list[dict[str, str]],
@@ -271,107 +406,4 @@ If you cannot generate a search query, return only the number 0.
             stream=should_stream,
         )
         return (extra_info, chat_coroutine)
-
-    async def run_without_streaming(
-        self,
-        history: list[dict[str, str]],
-        overrides: dict[str, Any],
-        obo_token,
-        session_state: Any = None,
-    ) -> dict[str, Any]:
-        extra_info, chat_coroutine = await self.run_simple_chat(
-            history, obo_token, should_stream=False
-        )
-
-        #extra_info, chat_coroutine = await self.run_until_final_call(
-        #    history, overrides, auth_claims, should_stream=False
-        #)
-        chat_resp = dict(chat_coroutine)
-        chat_resp["choices"][0]["context"] = extra_info
-        chat_resp["choices"][0]["session_state"] = session_state
-        return chat_resp
-
-    async def run_with_streaming(
-        self,
-        history: list[dict[str, str]],
-        overrides: dict[str, Any],
-        obo_token,
-        session_state: Any = None,
-    ) -> AsyncGenerator[dict, None]:
-        extra_info, chat_coroutine = await self.run_simple_chat(
-            history, overrides, should_stream=True
-        )
-        yield {
-            "choices": [
-                {
-                    "delta": {"role": self.ASSISTANT},
-                    "context": extra_info,
-                    "session_state": session_state,
-                    "finish_reason": None,
-                    "index": 0,
-                }
-            ],
-            "object": "chat.completion.chunk",
-        }
-
-        async for event in await chat_coroutine:
-            # "2023-07-01-preview" API version has a bug where first response has empty choices
-            if event["choices"]:
-                yield event
-
-    async def run(
-        self, messages: list[dict], stream: bool = False, session_state: Any = None, context: dict[str, Any] = {}
-    ) -> Union[dict[str, Any], AsyncGenerator[dict[str, Any], None]]:
-        overrides = context.get("overrides", {})
-        obo_token = context.get("obo_token", {})
-        if stream is False:
-            # Workaround for: https://github.com/openai/openai-python/issues/371
-            async with aiohttp.ClientSession() as s:
-                openai.aiosession.set(s)
-                response = await self.run_without_streaming(messages, overrides,obo_token, session_state)
-            return response
-        else:
-            return self.run_with_streaming(messages, overrides, obo_token, session_state)
-
-    def get_messages_from_history(
-        self,
-        system_prompt: str,
-        model_id: str,
-        history: list[dict[str, str]],
-        user_content: str,
-        max_tokens: int,
-        few_shots=[],
-    ) -> list:
-        message_builder = MessageBuilder(system_prompt, model_id)
-
-        # Add examples to show the chat what responses we want. It will try to mimic any responses and make sure they match the rules laid out in the system message.
-        for shot in few_shots:
-            message_builder.append_message(shot.get("role"), shot.get("content"))
-
-        append_index = len(few_shots) + 1
-
-        message_builder.append_message(self.USER, user_content, index=append_index)
-        total_token_count = message_builder.count_tokens_for_message(message_builder.messages[-1])
-
-        newest_to_oldest = list(reversed(history[:-1]))
-        for message in newest_to_oldest:
-            potential_message_count = message_builder.count_tokens_for_message(message)
-            if (total_token_count + potential_message_count) > max_tokens:
-                logging.debug("Reached max tokens of %d, history will be truncated", max_tokens)
-                break
-            message_builder.append_message(message["role"], message["content"], index=append_index)
-            total_token_count += potential_message_count
-        return message_builder.messages
-
-    def get_search_query(self, chat_completion: dict[str, Any], user_query: str):
-        response_message = chat_completion["choices"][0]["message"]
-        if function_call := response_message.get("function_call"):
-            if function_call["name"] == "search_sources":
-                arg = json.loads(function_call["arguments"])
-                search_query = arg.get("search_query", self.NO_RESPONSE)
-                if search_query != self.NO_RESPONSE:
-                    return search_query
-        elif query_text := response_message.get("content"):
-            if query_text.strip() != self.NO_RESPONSE:
-                return query_text
-        return user_query
+    '''
