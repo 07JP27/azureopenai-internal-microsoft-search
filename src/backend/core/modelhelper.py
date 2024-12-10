@@ -3,7 +3,6 @@ from __future__ import annotations
 import tiktoken
 
 # Ref: https://learn.microsoft.com/ja-jp/azure/ai-services/openai/concepts/models?utm_source=chatgpt.com&tabs=python-secure%2Cglobal-standard%2Cstandard-chat-completions#gpt-4-and-gpt-4-turbo-models
-# 1回のAPIリクエストで処理できるトークンの最大入力数
 MODELS_2_TOKEN_LIMITS = {
     "gpt-35-turbo": 4000,
     "gpt-3.5-turbo": 4000,
@@ -37,8 +36,7 @@ def num_tokens_from_messages(message: dict[str, str], model: str) -> int:
         num_tokens_from_messages(message, model)
         output: 11
     """
-    # encoding = tiktoken.encoding_for_model(get_oai_chatmodel_tiktok(model))
-    encoding = tiktoken.encoding_for_model("gpt-4o")
+    encoding = tiktoken.encoding_for_model(get_oai_chatmodel_tiktok(model))
     num_tokens = 2  # For "role" and "content" keys
     for key, value in message.items():
         num_tokens += len(encoding.encode(value))
