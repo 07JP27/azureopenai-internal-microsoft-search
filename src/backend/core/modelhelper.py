@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import tiktoken
 
+# Ref: https://learn.microsoft.com/ja-jp/azure/ai-services/openai/concepts/models?utm_source=chatgpt.com&tabs=python-secure%2Cglobal-standard%2Cstandard-chat-completions#gpt-4-and-gpt-4-turbo-models
 MODELS_2_TOKEN_LIMITS = {
     "gpt-35-turbo": 4000,
     "gpt-3.5-turbo": 4000,
     "gpt-35-turbo-16k": 16000,
     "gpt-3.5-turbo-16k": 16000,
+    "gpt-4o": 128000,
     "gpt-4": 8100,
     "gpt-4-32k": 32000,
 }
